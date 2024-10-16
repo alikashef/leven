@@ -30,6 +30,17 @@
     <div class="row justify-content-center mt-4">
       <div class="col-md-6 text-center">
         <div id="qrcode"></div>
+        <a id="downloadLink" class="btn btn-success mt-3" style="display:none;" download="qrcode.svg">Download QR Code (SVG)</a>
+      </div>
+    </div>
+
+    <!-- Display saved QR codes -->
+    <div class="row justify-content-center mt-4">
+      <div class="col-md-6 text-center">
+        <h3>Saved QR Codes</h3>
+        <ul id="savedQRCodes" class="list-group">
+          <!-- Saved QR Codes will appear here -->
+        </ul>
       </div>
     </div>
   </div>
@@ -49,7 +60,73 @@
         correctLevel: QRCode.CorrectLevel.H,
         useSVG: true,  // SVG output
       });
+
+      // Delay to ensure QR code is generated
+      setTimeout(() => {
+        const svg = document.querySelector('#qrcode svg');
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        // Set download link
+        const downloadLink = document.getElementById('downloadLink');
+        downloadLink.href = url;
+        downloadLink.style.display = 'inline-block';
+
+        // Save to localStorage
+        saveToLocalStorage(svgData);
+      }, 500);
     }
+
+    function saveToLocalStorage(svgData) {
+      const url = document.getElementById("urlInput").value;
+      let savedQRs = JSON.parse(localStorage.getItem('savedQRs')) || [];
+
+      // Add new QR code to the list
+      savedQRs.push({ url: url, svg: svgData });
+
+      // Save to localStorage
+      localStorage.setItem('savedQRs', JSON.stringify(savedQRs));
+
+      // Update the saved QR codes list
+      displaySavedQRCodes();
+    }
+
+    function displaySavedQRCodes() {
+      const savedQRs = JSON.parse(localStorage.getItem('savedQRs')) || [];
+      const savedQRCodesElement = document.getElementById('savedQRCodes');
+      savedQRCodesElement.innerHTML = '';
+
+      savedQRs.forEach((qr, index) => {
+        const listItem = document.createElement('li');
+        listItem.classList.add('list-group-item');
+        listItem.innerHTML = `
+          <strong>${qr.url}</strong>
+          <br />
+          <button class="btn btn-secondary btn-sm mt-2" onclick="loadQRCode(${index})">Load QR Code</button>
+        `;
+        savedQRCodesElement.appendChild(listItem);
+      });
+    }
+
+    function loadQRCode(index) {
+      const savedQRs = JSON.parse(localStorage.getItem('savedQRs'));
+      const qrData = savedQRs[index];
+
+      // Load QR code back into the page
+      document.getElementById('urlInput').value = qrData.url;
+      document.getElementById('qrcode').innerHTML = qrData.svg;
+
+      // Enable download button for the loaded QR
+      const downloadLink = document.getElementById('downloadLink');
+      const svgBlob = new Blob([qrData.svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      downloadLink.href = url;
+      downloadLink.style.display = 'inline-block';
+    }
+
+    // On page load, display saved QR codes
+    document.addEventListener('DOMContentLoaded', displaySavedQRCodes);
   </script>
 
   <!-- Bootstrap JS -->
