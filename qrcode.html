@@ -20,7 +20,7 @@
       <div class="col-md-6">
         <div class="form-group mb-3">
           <label for="urlInput">Enter URL:</label>
-          <input type="text" id="urlInput" class="form-control" placeholder="Enter URL here" value="https://your-redirect-url.com">
+          <input type="text" id="urlInput" class="form-control" placeholder="Enter URL here" value="">
         </div>
         <button class="btn btn-primary" onclick="generateQRCode()">Generate QR Code</button>
       </div>
@@ -46,7 +46,7 @@
   </div>
 
   <script>
-    function generateQRCode() {
+    function generateQRCode(editIndex = null) {
       var url = document.getElementById("urlInput").value;
       
       // Clear previous QR code
@@ -66,24 +66,28 @@
         const svg = document.querySelector('#qrcode svg');
         const svgData = new XMLSerializer().serializeToString(svg);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
+        const urlBlob = URL.createObjectURL(svgBlob);
 
         // Set download link
         const downloadLink = document.getElementById('downloadLink');
-        downloadLink.href = url;
+        downloadLink.href = urlBlob;
         downloadLink.style.display = 'inline-block';
 
-        // Save to localStorage
-        saveToLocalStorage(svgData);
+        // Save or edit QR code in localStorage
+        saveToLocalStorage(url, svgData, editIndex);
       }, 500);
     }
 
-    function saveToLocalStorage(svgData) {
-      const url = document.getElementById("urlInput").value;
+    function saveToLocalStorage(url, svgData, editIndex = null) {
       let savedQRs = JSON.parse(localStorage.getItem('savedQRs')) || [];
 
-      // Add new QR code to the list
-      savedQRs.push({ url: url, svg: svgData });
+      if (editIndex !== null) {
+        // Update existing QR code
+        savedQRs[editIndex] = { url: url, svg: svgData };
+      } else {
+        // Add new QR code to the list
+        savedQRs.push({ url: url, svg: svgData });
+      }
 
       // Save to localStorage
       localStorage.setItem('savedQRs', JSON.stringify(savedQRs));
@@ -103,7 +107,9 @@
         listItem.innerHTML = `
           <strong>${qr.url}</strong>
           <br />
-          <button class="btn btn-secondary btn-sm mt-2" onclick="loadQRCode(${index})">Load QR Code</button>
+          <button class="btn btn-secondary btn-sm mt-2" onclick="loadQRCode(${index})">Load</button>
+          <button class="btn btn-info btn-sm mt-2" onclick="editQRCode(${index})">Edit</button>
+          <button class="btn btn-danger btn-sm mt-2" onclick="deleteQRCode(${index})">Delete</button>
         `;
         savedQRCodesElement.appendChild(listItem);
       });
@@ -120,9 +126,33 @@
       // Enable download button for the loaded QR
       const downloadLink = document.getElementById('downloadLink');
       const svgBlob = new Blob([qrData.svg], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      downloadLink.href = url;
+      const urlBlob = URL.createObjectURL(svgBlob);
+      downloadLink.href = urlBlob;
       downloadLink.style.display = 'inline-block';
+    }
+
+    function editQRCode(index) {
+      const savedQRs = JSON.parse(localStorage.getItem('savedQRs'));
+      const qrData = savedQRs[index];
+
+      // Load data into input field for editing
+      document.getElementById('urlInput').value = qrData.url;
+      
+      // Regenerate QR code with edit flag
+      generateQRCode(index);
+    }
+
+    function deleteQRCode(index) {
+      let savedQRs = JSON.parse(localStorage.getItem('savedQRs')) || [];
+
+      // Remove the selected QR code from the list
+      savedQRs.splice(index, 1);
+
+      // Update localStorage
+      localStorage.setItem('savedQRs', JSON.stringify(savedQRs));
+
+      // Refresh the displayed list
+      displaySavedQRCodes();
     }
 
     // On page load, display saved QR codes
